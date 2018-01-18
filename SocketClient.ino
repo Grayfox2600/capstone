@@ -1,19 +1,17 @@
 /*
- *  This sketch sends data via HTTP GET requests to data.sparkfun.com service.
  *
- *  You need to get streamId and privateKey at data.sparkfun.com and paste them
- *  below. Or just customize this script to talk to other HTTP servers.
+ *  Connects to a listening TCP server
  *
  */
 
 #include <ESP8266WiFi.h>
 
-const char* ssid     = "Office";
-const char* password = "0MGSM25PRBS6";
+//const char* ssid     = "******************";
+//const char* password = "********";
+const char* ssid     = "******";
+const char* password = "************";
 
-const char* host = "192.168.0.153";
-const char* streamId   = "....................";
-const char* privateKey = "....................";
+const char* host = "192.168.0.10";
 
 void setup() {
   Serial.begin(115200);
@@ -62,21 +60,6 @@ void loop() {
     return;
   }
   
-  // We now create a URI for the request
-  String url = "/input/";
-  url += streamId;
-  url += "?private_key=";
-  url += privateKey;
-  url += "&value=";
-  url += value;
-  
-  Serial.print("Requesting URL: ");
-  Serial.println(url);
-  
-  // This will send the request to the server
-  client.print(String("GET ") + url + " HTTP/1.1\r\n" +
-               "Host: " + host + "\r\n" + 
-               "Connection: close\r\n\r\n");
   unsigned long timeout = millis();
   while (client.available() == 0) {
     if (millis() - timeout > 5000) {
@@ -86,14 +69,18 @@ void loop() {
     }
   }
 
-  client.print("Hello from client side!");
-  
+  client.print("client> Hello from client side!\n");
+
+  timeout = millis();
   // Read all the lines of the reply from server and print them to Serial
-  while(client.available()){
+  while(client.connected()){
     String line = client.readString();
     Serial.print(line);
+    if (millis() - timeout > 10000){
+      Serial.println("closing connection");
+      client.print("client> closing connection");
+      client.stop();
+    }
   }
-  
-  Serial.println("closing connection");
-  client.stop();
 }
+
