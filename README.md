@@ -1,6 +1,7 @@
 # capstone
 Repository for the ENGR499 Capstone project.
-Includes code for ESP8266 module in Arduino and socket listener written in C# 
+
+Includes code for ESP8266 module in Arduino and socket listener written in C#.
 
 Start C# listener. It will open a console window and begin waiting for an incoming TCP connection.
 Power up Arduino device running SocketClient code, and open serial monitor to observe it's behaviour.
