@@ -6,90 +6,78 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.IO;
+using System.Net.NetworkInformation;
 
 namespace Listener
 {
-    class Listener
+    static class Listener
     {
-        public static void StartListening()
+        public static void Main(string[] args)
         {
-            Byte[] ip = { 127, 0, 0, 1 };
-            int port = 8858;
+            Byte[] ip = { 192, 168, 0, 10 }; //Local IP
             IPAddress ipAddr = new IPAddress(ip);
-            TcpListener listener = new TcpListener(ipAddr, port);
+            int port = 8858; //Local port
 
-            listener.Start();
-            if (!listener.Pending())
+            while (true)
             {
-                int i = 1;
-                Console.WriteLine("/server> No incoming connection" );
-                while (!listener.Pending())
+                TcpListener listener = new TcpListener(ipAddr, port);
+                listener.Start();
+
+                if (!listener.Pending())
                 {
-                    Thread.Sleep(500);
-                    Console.Write(".");
-                    if (i % 30 == 0) {
-                        Console.WriteLine();                        
+                    int i = 1;
+                    Console.WriteLine("server> No incoming connection");
+                    while (!listener.Pending())
+                    {
+                       Thread.Sleep(500);
+                       Console.Write(".");
+                       if (i % 30 == 0)
+                       {
+                           Console.WriteLine();
+                       }
+                        i++;
                     }
-                    i++;
+                    Console.WriteLine();
                 }
-                Console.WriteLine();
-            }
-            
-            Socket sock = listener.AcceptSocket(); //blocks
-            Stream stream = new NetworkStream(sock);
-            StreamWriter sw = new StreamWriter(stream);
-            StreamReader sr = new StreamReader(stream);
 
-            Console.WriteLine("/server> Connected to {0} on remote port {1} and local port {2}", 
-                IPAddress.Parse(((IPEndPoint) sock.RemoteEndPoint).Address.ToString()), 
-                ((IPEndPoint) sock.RemoteEndPoint).Port.ToString(),
-                port);
+                Socket sock = listener.AcceptSocket(); //Blocks until incoming connection
 
-            if (sock.Poll(2000, SelectMode.SelectRead))
-            {
-                Console.WriteLine("/server> Socket is readable");
-                sw.WriteLine("Socket is readable");
-            }
-            else
-                Console.WriteLine("/server> Socket is not readable");
+                Console.WriteLine("server> Connected to {0} on local port {1}", sock.RemoteEndPoint, port);
+                NetworkStream stream = new NetworkStream(sock);
+                StreamReader sr = new StreamReader(stream);
+                StreamWriter sw = new StreamWriter(stream);
+                sw.AutoFlush = true;
+                string data_in = "";
 
-            if (sock.Poll(2000, SelectMode.SelectWrite))
-            {
-                Console.WriteLine("/server> Socket is writeable");
-                sw.WriteLine("Socket is writeable");
-            }
-            else
-                Console.WriteLine("/server> Console is not writeable");
-            
-            sw.AutoFlush = true;
-            sw.WriteLine("Welcome from server side!");
-            sw.Flush();
-
-            while (sock.Connected)
-            {
                 try
-                {                   
-                    Console.WriteLine("/server> " + sr.ReadLine()); //should block
-                    sw.Write("");
-                    Thread.Sleep(100);
-                }
-                catch (System.IO.IOException)
                 {
-                    Console.WriteLine("/server> Connection terminated");
+                    sw.WriteLine("server> Server says hello");
+
+                    while (GetState(listener) == TcpState.Established)
+                    {
+                        data_in = sr.ReadLine(); //doesn't need to block since we can check state of tcp connection
+                        Console.WriteLine(data_in); //displays contents of data_in buffer
+                    }
+                    Console.WriteLine("server> Stream closed");
+                    stream.Close();
                 }
-               
-            }
-            
-            stream.Close();
-            sock.Close();
-            Thread.Sleep(10000);
+                catch (Exception e)
+                {
+                    Console.WriteLine("server> Some exception occured:\n" + e.Message);
+                }
+
+                Console.WriteLine("server> {0} disconnected", sock.RemoteEndPoint);
+                sock.Close();
+                listener.Stop();
+
+            }           
 
         }
-
-        /*static void Main(string[] args)
+        public static TcpState GetState(this TcpListener tcpListener)
         {
-            StartListening();
-        }*/
+            var foo = IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpConnections().FirstOrDefault(x => x.LocalEndPoint.Equals(tcpListener.Server.LocalEndPoint));
+            return foo != null ? foo.State : TcpState.Unknown;
+        }
 
     }
 }
