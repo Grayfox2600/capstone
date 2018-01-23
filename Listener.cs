@@ -12,14 +12,25 @@ namespace Listener
     {
         public static void Main(string[] args)
         {
-            Byte[] ip = { 192, 168, 0, 10 };            //Local IP
+            Byte[] ip = { 192, 168, 0, 153 };            //Local IP
             IPAddress ipAddr = new IPAddress(ip);
             int port = 8858;                            //Local port
+            bool reconn = true;                         //Boolean switch for looping
 
-            while (true)        //Loop forever. If connection closed, come back and wait for a new conection
+            while (reconn)                      //Loop until reconnect evaluates to false
             {
                 TcpListener listener = new TcpListener(ipAddr, port);
-                listener.Start();
+
+                try                         //Catch an exception if local IP is incorrect or invalid
+                {
+                    listener.Start();
+                }
+                catch (System.Net.Sockets.SocketException)
+                {
+                    Console.WriteLine("Exception: Invalid local IP address");
+                    Thread.Sleep(1000);
+                    return;
+                }           
 
                 if (!listener.Pending())        //If no connection incoming:
                 {
@@ -34,6 +45,11 @@ namespace Listener
                            Console.WriteLine();
                        }
                         i++;
+                        if (i >= 90)
+                        {
+                            Console.WriteLine("\nConnection timeout");
+                            return;
+                        }
                     }
                     Console.WriteLine();
                 }
@@ -68,13 +84,35 @@ namespace Listener
                 sock.Close();           //Close socket
                 listener.Stop();        //Stop listener
 
-            }           
+                bool  verifyIn = false;     //Boolean for input verification
+                while (!verifyIn)
+                {
+                    Console.WriteLine("Enter y to listen for another connection, or n to quit:");
+                    char loop = Console.ReadKey().KeyChar;              //Read single char key input
+                    if (loop == ('y'))                                  //Some input verification
+                    {
+                        Console.WriteLine("\nListening for new connection...");
+                        verifyIn = true;
+                    }
+                    else if (loop == 'n')
+                    {
+                        Console.WriteLine("\nClosing program...");
+                        verifyIn = true;
+                        reconn = false;
+                    }
+                    else
+                        Console.WriteLine("\nInvalid input, try again");
+                }
+
+            }
+
+            return;       
 
         }
         public static TcpState GetState(this TcpListener tcpListener)       //This is a method to check the state of the tcp connection
         {
-            var foo = IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpConnections().FirstOrDefault(x => x.LocalEndPoint.Equals(tcpListener.Server.LocalEndPoint));   //This is wizardry. Returns TcpConnectionInformation object
-            return foo != null ? foo.State : TcpState.Unknown;      //If TcpConnectionInformation object is null return state "unknown", else return the actual state. Will return "established" if connection is live.
+            var connInfo = IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpConnections().FirstOrDefault(x => x.LocalEndPoint.Equals(tcpListener.Server.LocalEndPoint));   //This is wizardry. Returns TcpConnectionInformation object
+            return connInfo != null ? connInfo.State : TcpState.Unknown;      //If TcpConnectionInformation object is null return state "unknown", else return the actual state. Will return "established" if connection is live.
         }
 
     }
